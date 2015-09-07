@@ -1,4 +1,4 @@
-.o
-.cgi
-.gz
-.sh
+*.o
+*.cgi
+*.gz
+*.sh
