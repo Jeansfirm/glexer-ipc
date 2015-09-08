@@ -9,6 +9,7 @@
       <author>  <time>   	<version >   	<desc>
 	pjf	 2015-7-23            		add a URLDecode function
 ***************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +28,6 @@
 
 #include "cJSON.h"
 #include "sqlite_access.h"
-//#include "online_detect.h"
 #include "online_detect.h"
 
 #include <iconv.h> 
@@ -39,6 +39,7 @@
 #define CAP_MAX          10
 
 char file_num = 0;  //IPC ID
+
 
 /***************************************************************************
   Function:       parse_data(char* inputstr,char *outputstr,char* value)
@@ -67,6 +68,7 @@ void parse_data(char* inputstr,char *outputstr,char* value)
 	}
 	outputstr[j] = '\0';
 }
+
 
 /***************************************************************************
   Function:       char* getcgidata(FILE* fp, char* requestmethod)
@@ -123,6 +125,8 @@ char* getcgidata(FILE* fp, char* requestmethod)
     }
        return NULL;
 }
+
+
 /***************************************************************************
   Function:       check_ipc_id(char *ipc_id)
   Description:    check whether the ipc_id is in the range of 0-10
@@ -143,6 +147,7 @@ int check_ipc_id(char *ipc_id)
 	}
     return ret;
 }
+
 
 /***************************************************************************
   Function:       package_json 
@@ -181,6 +186,7 @@ char *package_json(int type,char *msg,char *pic_name)
     return out; 
 }
 
+
 /***************************************************************************
   Function:       package_json_callback 
   Description:    发到5017端口的callback数据格式
@@ -212,6 +218,8 @@ char *package_json_callback(int type,char *pic_name,int num)
     return out; 
 }
 
+
+#if 0
 /***************************************************************************
   Function:       strtrans 
 
@@ -245,7 +253,6 @@ void strtrans(char *instr,char *outstr)
 	
 }
 
-#if 0
 
 #define NON_NUM '0'
 
@@ -311,9 +318,9 @@ int URLDecode(const char* str, const int strSize, char* result, const int result
     return j;
 }
 
-#endif
 
-#if 0
+
+
 /***************************************************************************
   Function:       code_convert
   Description:   Chinese Transcoding
@@ -349,6 +356,7 @@ int u2g(char *inbuf,int inlen,char *outbuf,int outlen)
 #endif
 
 
+
 /***************************************************************************
   Function:       main()
   Description:    主函数
@@ -371,57 +379,57 @@ int main()
 
    	char *input;
    	char *req_method; 
+	char *send_buf;
    	FILE *fp; 
 	FILE *fp_count,*fp_old;
 	FILE *fp_capture,*fp_rm;
 	FILE *fp_upload;
 	FILE *fp_mac;
+
+
 	char ipc_id[20];
 	//char flag[20];
 	//char ruleid[20];
-
 	char ieee[50];
 	//int  findalias_ret;
 	char alias[100];
-	char alias_out[100];
-	
-	
-	int  findip_ret;
-	int  findalias_ret;
+	//char alias_out[100];	
 	char capture_cmd[500];
 	char upload_cmd[500];
 	char file_path[200];
 	char pic_name[100];
 	char captime[30];
-	char captime_out[30];	
+	//char captime_out[30];	
 	char buffer_count[1024],buffer_old[2014],buffer_mac[1024];
 	char rm_cmd[200];
+	char ipaddr[20];	
+	char ipc_status[10];
+	char name[100];
+	char password[100];
+	char cap_num[10];
+
+
 	//time_t timep; 
 	//struct tm *p; 
 	//time(&timep);
-	int system_ret;
-	int pic_num;
-	char ipaddr[20];
 	int err_num = 0;
-	char ipc_status[10];
+	int system_ret;
+	int pic_num;	
         int init_ret;
 	int initdetect_ret;
+	int  findip_ret;
+	//int  findalias_ret;
 	int res; 
-	int sockfd_send; 	
-	char *send_buf;
+	int sockfd_send;
 	int send_ret;
 	int close_capture;
 	int close_count;
 	int close_old;
-	pid_t status;
-
-	char name[100];
-	char password[100];
+	pid_t status;	
 	int findname_ret;
-	int findpw_ret;
-
-	char cap_num[10];
+	int findpw_ret;	
 	int icap_num;
+
 
 	//IPCCapture log file related
 	FILE *cap_log_fd;
@@ -435,6 +443,7 @@ int main()
 	fputs(str_log,cap_log_fd);
 	
 	
+
 	/*socket initialization and connection build*/
 
 	struct sockaddr_in servaddr;	  
@@ -523,7 +532,7 @@ int main()
 		err_num = -21;
 		goto over;
 	}
-	strtrans(captime,captime_out); //transform the string containing "%20" to string containing '_'
+	//strtrans(captime,captime_out); //transform the string containing "%20" to string containing '_'
 
 	parse_data(input,cap_num,"num=");
 	if(cap_num == NULL)
@@ -550,6 +559,7 @@ int main()
 		goto over;
 	}
  
+	/*
 	findalias_ret=findaliasfromid(ipc_id,alias);
 	if(findalias_ret==-1)
 	{
@@ -561,7 +571,7 @@ int main()
 		err_num = -5;
 		goto over;
 	}
-  
+	*/  
 
    //	URLDecode(alias,strlen(alias),alias_out,100);
 
@@ -570,6 +580,7 @@ int main()
     u2g(alias,strlen(alias),alias_out,1000);
 	printf("<p>alias:%s\n</p>",alias_out);
 */
+
 
 
 	/*ipc online detect*/
@@ -596,7 +607,7 @@ int main()
     		int i;
 	for(i=1;i<=icap_num;i++)	
 	{
-		sprintf (pic_name,"%s_%s_%s_%d.jpg",captime_out,ieee,ipc_id,i);
+		sprintf (pic_name,"%s_%s_%s_%d.jpg",captime,ieee,ipc_id,i);
 		//printf("<p>ipc_name:%s\n</p>",pic_name);
 		sprintf(file_path,"/var/www/IPCCapture/%s",pic_name);
 		findname_ret=findnamefromid(ipc_id,name);		
@@ -731,6 +742,7 @@ int main()
 
 		goto over;
    }
+
 
 
 	/*make sure that the number of picture is less than MAX_PIC*/
