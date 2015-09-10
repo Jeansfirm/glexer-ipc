@@ -242,7 +242,7 @@ while(1)
 			close(sockfd_send);
 		}	
 	}
-	
+
 	//printf("init_status_array=%s\n",init_status_array);
 	//printf("err_num:%d\n",err_num);
 
