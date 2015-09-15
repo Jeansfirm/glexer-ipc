@@ -14,12 +14,10 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include "online_detect.h"
-#include "public.h"
-#include "sqlite_access.h"
+#include "detect_server.h"
 
 #define PACKET_SIZE     4096
-#define MAX_WAIT_TIME   2
+#define MAX_WAIT_TIME   3
 #define MAX_NO_PACKETS  3
 
 char sendpacket[PACKET_SIZE];
@@ -28,8 +26,6 @@ char recvpacket[PACKET_SIZE];
 int sockfd,datalen=56;
 int nsend=0,nreceived=0,unreceived=0;
 pid_t pid;
-
-//struct etc_msg ipc_etc_msg;//IPC地址数据结构体
 
 struct sockaddr_in dest_addr;
 struct sockaddr_in from;
@@ -41,20 +37,18 @@ int pack(int pack_no);
 void send_packet(void);
 void recv_packet(void);
 int unpack(char *buf,int len);
-void uninit_online_detect();
-void tv_sub(struct timeval *out,struct timeval *in);
-struct etc_msg ipc_etc_msg;//IPC地址数据结构体
+void uninit_detect();
 
-
+//void tv_sub(struct timeval *out,struct timeval *in);
 #if 1
 void statistics(int signo)
 {       //printf("\n--------------------PING statistics-------------------\n");
         /*printf("%d packets transmitted, %d received , %%%d lost\n",nsend,nreceived,
                         (nsend-nreceived)/nsend*100);*/
-	
-        close(sockfd);//this sockfd has been ruined, it must be closed and reinitialized
-	
-	//exit(1);
+        close(sockfd);
+	//printf("overtime error\n");
+	//nreceived=-1;
+        //exit(1);
 }
 #endif
 
@@ -118,16 +112,6 @@ void send_packet()
         }
 }
 
-/*两个timeval结构相减*/
-void tv_sub(struct timeval *out,struct timeval *in)
-{      
-	if( (out->tv_usec-=in->tv_usec)<0)      
-	{     
-		--out->tv_sec;      
-		out->tv_usec+=1000000;   
-	}       
-	out->tv_sec-=in->tv_sec;
-}
 
 /*接收所有ICMP报文*/
 void recv_packet()
@@ -136,18 +120,24 @@ void recv_packet()
         extern int errno;
         signal(SIGALRM,statistics);
         fromlen=sizeof(from);
-	alarm(MAX_WAIT_TIME);
+        alarm(MAX_WAIT_TIME);
         while( nreceived<nsend)
-        {       
+        {
+
                 if( (n=recvfrom(sockfd,recvpacket,sizeof(recvpacket),0,
                                 (struct sockaddr *)&from,&fromlen)) <0)
                 {       
-			//if(errno==EINTR)continue;
-			//perror("recvfrom error");
+						//if(errno==EINTR)continue;
+						//perror("recvfrom error");
                         break;
                 }
                 gettimeofday(&tvrecv,NULL);  /*记录接收时间*/
-                if(unpack(recvpacket,n)==-1)continue;
+                if(unpack(recvpacket,n)==-1)
+                {
+                	//printf("received but not right\n");
+                	continue;
+               	}
+
                 nreceived++;
 
         }
@@ -250,13 +240,12 @@ void tv_sub(struct timeval *out,struct timeval *in)
 
 
 
-int detect_ipc_online(char *ipaddr)
+int detect_server(char *ipaddr)
 {     
     nsend=0;
     nreceived=0; 
     unreceived=0;
     dest_addr.sin_addr.s_addr = inet_addr(ipaddr);
-	//printf("dest addr:%s\n", inet_ntoa(dest_addr.sin_addr));
     
 	pid=getpid();        /*获取进程id,用于设置ICMP的标志符*/  
          
@@ -268,8 +257,7 @@ int detect_ipc_online(char *ipaddr)
 
 }
 
-
-
+/*
 void init_data_online_detect()
 {
     int ipc_num;
@@ -279,9 +267,10 @@ void init_data_online_detect()
         memset(ipc_etc_msg.ipc_list[ipc_num].ip_addr,0,sizeof(ipc_etc_msg.ipc_list[ipc_num].ip_addr));
     }
 }
+*/
 
 
-int init_online_detect()
+int init_detect()
 {
     struct protoent *protocol;   
     
@@ -289,8 +278,6 @@ int init_online_detect()
 
     nsend=0;
     nreceived=0; 
-	
-	setuid(getuid());
 
 	if((protocol=getprotobyname("icmp") )==NULL)     
 	{    
@@ -329,64 +316,9 @@ int init_online_detect()
 }
 
 
-/***************************************************************************
-  Function:       get_ipc_status(char*ipc_status))
-  Description:    从数据库中取得IPC IP地址，并查询获PC状态，查询结构保存在ipc_status
-  Input:                            
-  Output:         
-  Return:        0：成功，-1：操作数据库失败 
-  Others:         
-***************************************************************************/
-int get_ipc_status(char *ipc_status)
-{
-	char status;
-	int ipc_num;
-	int result;
-	
-	init_data_online_detect();//每次查选都初始化数据结构体
-	
-	result = find_ipc_etc(&ipc_etc_msg);
-	if(result!=0)
-    	{
-       	 	uninit_database();
-        	return -1;
-    	}
 
-	
-	int i;
-	for(ipc_num=0;ipc_num<MAX_IPC_NUM;ipc_num++)
-    	{
-        	if(strlen(ipc_etc_msg.ipc_list[ipc_num].ip_addr)>0)//IPC存在
-        	{
-           		//printf("ipc_etc_msg.ipc_list[%d].ip_addr =%s\r\n",ipc_num,ipc_etc_msg.ipc_list[ipc_num].ip_addr);
-            		if(detect_ipc_online(ipc_etc_msg.ipc_list[ipc_num].ip_addr)>=3)
-            		{
-                 		ipc_status[ipc_num] = 'a';//在线
-                     
-            		}
-            		else
-            		{
-                 		ipc_status[ipc_num] = 'b';//不在线
-				init_online_detect(); //after overtime blocked, the sockfd has been ruined, it must be reinitialized 
-                        
-            		}
-        	}
-        	else//对应IPC不存在
-        	{
-           		ipc_status[ipc_num] = 'c';
-        	}
-			//printf("ipc_status[%d]:%c\n",ipc_num,ipc_status[ipc_num]);
-    	}
 
-	
-	ipc_status[MAX_IPC_NUM]='\0';
-	close(sockfd);
-
-	return 0;
-    
-}
-
-void uinit_online_detect()
+void uninit_detect()
 {
 	close(sockfd);
 }

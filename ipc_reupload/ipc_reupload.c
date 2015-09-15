@@ -1,0 +1,270 @@
+#include<stdio.h>
+#include<string.h>
+#include<sys/wait.h>
+
+FILE *log_fd_in,*log_fd_out,*fd_mac;
+char file_name[100];
+char file_path[100];
+char cmd_upload[200];
+char buff_mac[50];
+int status_upload;
+
+char a;
+
+
+char *ser_ip="121.199.21.14";
+
+/**
+ * @description:
+ * @param ipaddr
+ * @return
+ */
+int check_server_network(char *ipaddr)
+{
+	init_detect();
+	if(detect_server(ipaddr)==3)
+	{
+		uninit_detect();
+		return 1;
+	}
+	else
+	{
+		uninit_detect();
+		return 0;
+	}
+}
+
+
+void remove_return(char *str)
+{
+
+	int len;
+	len=strlen(str);
+	str[len-1]='\0';
+
+}
+
+
+/**
+ *
+ * @return
+ */
+void getnamefrompath(char *name,char *path)
+{
+	char *temp;
+	int i=0,j=0,k=0;
+	while(i<4)
+	{
+		if(path[j]=='/')
+		{
+			i++;
+		}
+		j++;
+	}
+	temp=path+j;
+	while(path[j]!='\0')
+	{
+		name[k]=path[j];
+		k++;
+		j++;
+	}
+	name[k]='\0';
+}
+
+
+/**
+ * @description: delete first line of the file stream, and its current file position must be at the beginning of second line
+ * @param fd
+ */
+void del_firstline()
+{
+
+	while(1)
+	{
+		a=fgetc(log_fd_in);
+		//printf("%c\t",c);
+		if(EOF==a)break;
+		fputc(a,log_fd_out);
+	}
+	fclose(log_fd_in);
+	fclose(log_fd_out);
+	remove("/var/www/uploadfailure_log");
+	rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
+}
+
+
+/**
+ * check if the file exists or not
+ * @return
+ */
+int file_exist(char *file_path)
+{
+	FILE *fd;
+	char temp_name[100];
+	char name[100];
+	int len;
+
+	getnamefrompath(name,file_path);
+
+	fd=popen("ls /var/www/IPCCapture","r");
+	while(!feof(fd))
+	{
+		fgets(temp_name,sizeof(temp_name),fd);
+		remove_return(temp_name);
+		if(!strcmp(name,temp_name))
+		{
+			return 1;
+		}
+	}
+	fclose(fd);
+
+
+	fd=popen("ls /var/www/IPCRecord","r");
+	while(!feof(fd))
+	{
+			fgets(temp_name,sizeof(temp_name),fd);
+			remove_return(temp_name);
+			if(!strcmp(name,temp_name))
+			{
+				return 1;
+			}
+	}
+	fclose(fd);
+
+	return 0;
+}
+
+
+
+
+int main()
+{
+	
+	fd_mac=popen("cat /gl/etc/mac.conf","r");
+	while(!feof(fd_mac))
+	{
+		fgets(buff_mac,sizeof(buff_mac),fd_mac);
+	}
+	pclose(fd_mac);
+	printf("mac address:%s\n",buff_mac);
+	
+
+	while(1)
+	{
+
+
+		if(check_server_network(ser_ip))
+		{
+
+			log_fd_in=fopen("/var/www/uploadfailure_log","r");
+			log_fd_out=fopen("/var/www/uploadfailure_log_temp","w");
+			file_path[0]='\0';
+			file_name[0]='\0';
+			fgets(file_path,sizeof(file_path),log_fd_in);
+
+			if(strlen(file_path)==0)
+			{
+				goto over;
+			}
+
+			remove_return(file_path);
+			//printf("file address:%s\n",file_path);
+
+		/*	int len;
+			len=strlen(file_path);
+			printf("%d\n",file_path[len-1]);
+			printf("%d\n",file_path[len]);
+			break;
+		*/
+
+			if(!file_exist(file_path))
+			{
+
+				printf("%s doesn't exist!\n",file_path);
+
+				//del_firstline();
+				//remove("/var/www/uploadfailure_log");
+				//rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
+
+				while(1)
+				{
+					a=fgetc(log_fd_in);
+					//printf("%c\t",c);
+					if(EOF==a)break;
+					fputc(a,log_fd_out);
+				}
+				fclose(log_fd_in);
+				fclose(log_fd_out);
+				remove("/var/www/uploadfailure_log");
+				rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
+
+				continue;
+			}
+
+
+			printf("%s does exist!\n",file_path);
+
+			getnamefrompath(file_name,file_path);
+			sprintf(cmd_upload,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://%s:8888/SmartHome/uploadfile",file_name,file_path,buff_mac,ser_ip);
+			//sprintf(cmd_upload,"/usr/bin/curl -F filename=1439456470_10197A000001222D_1_1.jpg -F capture=@/var/www/IPCCapture/1439456470_10197A000001222D_1_1.jpg -F gateway=%s -F OK=ok http://121.199.21.14:8888/SmartHome/uploadfile",buff_mac);
+			status_upload=system(cmd_upload);
+			if(-1==status_upload)
+			{
+				goto over;
+			}else
+			{
+				if(WIFEXITED(status_upload))
+				{
+					if(0==WEXITSTATUS(status_upload))
+					{
+
+						printf("%s upload successfully!!\n",file_name);
+
+						//del_firstline();
+						//remove("/var/www/uploadfailure_log");
+						//rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
+
+						while(1)
+							{
+								a=fgetc(log_fd_in);
+								//printf("%c\t",c);
+								if(EOF==a)break;
+								fputc(a,log_fd_out);
+							}
+						fclose(log_fd_in);
+						fclose(log_fd_out);
+						remove("/var/www/uploadfailure_log");
+						rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
+
+						continue;
+
+					}else
+					{
+						goto over;
+					}
+				}else
+				{
+					goto over;
+				}
+			}
+			
+
+	
+			over:
+				//printf("upload unsuccessfully!!\n");
+				fclose(log_fd_in);
+				fclose(log_fd_out);
+
+
+		}
+
+		//printf("ready to sleep\n");
+		sleep(900000);
+		sleep(900000);
+	}
+
+
+
+	return 0;
+
+}

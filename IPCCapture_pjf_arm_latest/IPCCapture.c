@@ -35,7 +35,7 @@
 
 #define MAX_IPC_NUM      50
 #define SERV_PORT        5017
-#define PIC_MAX		 10  //maximum allowable number in the folder
+#define PIC_MAX		 100  //maximum allowable number in the folder
 #define CAP_MAX          10
 #define CAP_LOG		 0
 
@@ -419,7 +419,6 @@ int main()
         int init_ret;
 	int initdetect_ret;
 	int  findip_ret;
-	//int  findalias_ret;
 	int res; 
 	int sockfd_send;
 	int send_ret;
@@ -432,19 +431,12 @@ int main()
 	int icap_num;
 
 
+	FILE *uploadfailure_fd;
+	char str_upload[150];
 
-#if CAP_LOG
-	//IPCCapture log file related
-	FILE *cap_log_fd;
-	cap_log_fd=fopen("/var/www/capturelog","a");
-	char str_log[100];
-	time_t t_log;
-	struct tm *tm_log;
-	time(&t_log);
-	tm_log=localtime(&t_log);
-	sprintf(str_log,"\n\nipccapture.cgi executed time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-	fputs(str_log,cap_log_fd);
-#endif	
+	uploadfailure_fd=fopen("/var/www/uploadfailure_log","a+");
+
+
 
 	
 
@@ -601,6 +593,7 @@ int main()
 
 
 
+
 	/*start IPC capturing*/
 	
     	if(ipc_status[0]=='a')
@@ -610,7 +603,8 @@ int main()
 /*		sprintf (pic_name,"%d%02d%02d%02d%02d%02d_%s_%s.jpg",(1900+p->tm_year),( 1+p->tm_mon),p->tm_mday,p->tm_hour,p->tm_min,p->tm_sec,ieee,ipc_id);*/
     		int i;
 	for(i=1;i<=icap_num;i++)	
-	{
+	{	
+		err_num=0;
 		sprintf (pic_name,"%s_%s_%s_%d.jpg",captime,ieee,ipc_id,i);
 		//printf("<p>ipc_name:%s\n</p>",pic_name);
 		sprintf(file_path,"/var/www/IPCCapture/%s",pic_name);
@@ -635,14 +629,7 @@ int main()
 		}
 
 
-#if CAP_LOG		
-		// ipccapture log file related
-		time(&t_log);
-		tm_log=localtime(&t_log);
-		sprintf(str_log,"capture successfully, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-		fputs(str_log,cap_log_fd);
-#endif
-	
+
 	
 		if(i==1)
 		{
@@ -659,23 +646,16 @@ int main()
 		/*start uploading picture to server*/
 
 		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:8888/SmartHome/uploadfile",pic_name,file_path,buffer_mac);
+		//sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:89998/SmartHome/uploadfile",pic_name,file_path,buffer_mac);      // a wrong url, just for test
 		//printf("<p>upload_cmd:%s\n</p>",upload_cmd);
+
+
     		status=system(upload_cmd);
 		if(-1==status)
 		{
 			err_num=-18;
 			
 			//printf("<p>system error!\n</p>");
-
-#if CAP_LOG
-			// ipccapture log file related
-			time(&t_log);
-			tm_log=localtime(&t_log);
-			sprintf(str_log,"pic upload failure, status=-18, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-			fputs(str_log,cap_log_fd);
-#endif
-
-			goto over;
 
 		}
 		else
@@ -690,39 +670,15 @@ int main()
 					if(i==icap_num)
 					{
 						
-						#if 0
-						//printf("<p>run shell script successfully\n</p>");
-						send_buf=package_json_callback(err_num,pic_name,icap_num);
-						send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
-					
-						close(sockfd_send);
-						#endif
 
 					}
 
-#if CAP_LOG
-					// ipccapture log file related
-					time(&t_log);
-					tm_log=localtime(&t_log);
-					sprintf(str_log,"pic upload successfully, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-					fputs(str_log,cap_log_fd);
-#endif
-
-
 				}
 				else{
+					
 					//printf("<p>run shell script fail,script exit code:%d\n</p>",WEXITSTATUS(status));
 					err_num=-19;
 
-#if CAP_LOG
-					// ipccapture log file related
-					time(&t_log);
-					tm_log=localtime(&t_log);
-					sprintf(str_log,"pic upload failure, status=-19, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-					fputs(str_log,cap_log_fd);
-#endif
-
-					goto over;
 					
 				}
 			}
@@ -730,35 +686,31 @@ int main()
 			{
 				err_num=-20;
 
-#if CAP_LOG
-				// ipccapture log file related
-				time(&t_log);
-				tm_log=localtime(&t_log);
-				sprintf(str_log,"pic upload failure, status=-20, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-				fputs(str_log,cap_log_fd);
-#endif
-
-				goto over;
 				//printf("<p>exit status=[%d]\n</p>",WEXITSTATUS(status));
+
 			}
 		}
 		sleep(1);
+		
+		if(err_num==-18||err_num==-19||err_num==-20)
+		{
+			sprintf(str_upload,"%s\n",file_path);
+			fputs(str_upload,uploadfailure_fd);
+			
+		}
+
 	}
 	}
    else
    {
-		err_num=-8;  //the IPC with ipc_id is not online
-
-#if CAP_LOG
-		// ipccapture log file related
-		time(&t_log);
-		tm_log=localtime(&t_log);
-		sprintf(str_log,"pic upload failure, status=-8, ipc is not online, time:%d%02d%02d%02d%02d%02d\n",(1900+tm_log->tm_year),( 1+tm_log->tm_mon),tm_log->tm_mday,tm_log->tm_hour,tm_log->tm_min,tm_log->tm_sec);
-		fputs(str_log,cap_log_fd);
-#endif
+		err_num=-8;  	//the IPC with ipc_id is not online
 
 		goto over;
    }
+
+
+
+
 
 
 
@@ -810,6 +762,9 @@ int main()
 	}
    
    
+
+
+
    
 over:
 	switch(err_num)
@@ -866,14 +821,15 @@ over:
     }
 	
 
-#if CAP_LOG	
-	//IPCCapture log file related
-	fclose(cap_log_fd); 
-#endif
+	fclose(uploadfailure_fd);
 
-	//for test
-	send_buf=package_json_callback(err_num,pic_name,icap_num);
-	send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
+	if(err_num==0||err_num==-18||err_num==-19||err_num==-20)	//capture successfully, but upload failed
+	{
+		//send_buf=package_json_callback(err_num,pic_name,icap_num);
+		send_buf=package_json_callback(0,pic_name,icap_num);
+		send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
+	}
+
 	close(sockfd_send);
 
 	uninit_database();

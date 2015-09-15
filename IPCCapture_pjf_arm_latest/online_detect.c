@@ -17,7 +17,7 @@
 #include "online_detect.h"
 
 #define PACKET_SIZE     4096
-#define MAX_WAIT_TIME   5
+#define MAX_WAIT_TIME   3
 #define MAX_NO_PACKETS  3
 
 char sendpacket[PACKET_SIZE];
@@ -120,9 +120,9 @@ void recv_packet()
         extern int errno;
         signal(SIGALRM,statistics);
         fromlen=sizeof(from);
-
+	alarm(MAX_WAIT_TIME);
         while( nreceived<nsend)
-        {       alarm(MAX_WAIT_TIME);
+        {       
                 if( (n=recvfrom(sockfd,recvpacket,sizeof(recvpacket),0,
                                 (struct sockaddr *)&from,&fromlen)) <0)
                 {       

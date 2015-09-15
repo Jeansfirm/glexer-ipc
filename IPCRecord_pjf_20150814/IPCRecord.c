@@ -35,7 +35,7 @@
 
 
 #define SERV_PORT	5017
-#define VIDEO_MAX	5
+#define VIDEO_MAX	40
 #define DURATION_MAX    120      
 #define STREAM_NUM      2      // num 1 means mainstream, num 2 means substream   
 
@@ -274,13 +274,17 @@ int main()
 	int t_after;
 	int t_middle;
 	
-	
 
 	char duration[10];
 	int iduration;
 	//pid_t status_record;
 	pid_t status_upload;
 
+	FILE *uploadfailure_fd;
+	char str_upload[150];
+
+	uploadfailure_fd=fopen("/var/www/uploadfailure_log","a+");
+	
 
 	/*initialize the socket and build the connection*/
 
@@ -460,12 +464,15 @@ int main()
 		pclose(fp_mac);
 
 		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:8888/SmartHome/uploadfile",video_name,file_path,buffer_mac);
+		//sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:88818/SmartHome/uploadfile",video_name,file_path,buffer_mac);  //a wrong url, just for uploadfailure test
+
+
 #if 1		
 		status_upload=system(upload_cmd);		
 		if(-1==status_upload)
 		{
 			err_num=-16;
-			goto over;
+			
 		} else
 		{
 			//printf("<p>exit status value =[0x%d]\n</p>",status);
@@ -491,13 +498,13 @@ int main()
 				{
 					//printf("<p>run shell script fail,script exit code:%d\n</p>",WEXITSTATUS(status));
 					err_num=-17;
-					goto over;					
+										
 				}
 			}			
 			else
 			{
 				err_num=-18;
-				goto over;
+				
 				//printf("<p>exit status=[%d]\n</p>",WEXITSTATUS(status));
 			}
 		}
@@ -509,6 +516,13 @@ int main()
 	}
 
 	
+	if(-16==err_num||-17==err_num||-18==err_num)
+	{
+		sprintf(str_upload,"%s\n",file_path);
+		fputs(str_upload,uploadfailure_fd);
+	}
+
+
 
 
 	/*make sure that video files are less than VIDEO_MAX*/
@@ -543,6 +557,7 @@ int main()
 
 
 
+
 over:
 	switch(err_num)
 	{
@@ -571,11 +586,18 @@ over:
 		default:break;
 	}
 
-	//just for test
-	send_buf=package_json_callback(err_num,video_name,iduration);
-	send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
-	close(sockfd_send);
 
+
+	if(0==err_num||-16==err_num||-17==err_num||-18==err_num)
+	{
+		//send_buf=package_json_callback(err_num,video_name,iduration);
+		send_buf=package_json_callback(0,video_name,iduration);
+		send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
+		close(sockfd_send);
+	}
+
+	
+	fclose(uploadfailure_fd);	
 	uninit_database();
 	//uninit_online_detect();	
 
