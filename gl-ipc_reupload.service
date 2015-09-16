@@ -1,0 +1,13 @@
+[Unit]
+Description=GL ipc_reupload
+After=gl-clientadmin.service
+
+[Service]
+Type=simple
+ExecStart=/gl/bin/ipc_reupload
+Restart=always                  
+RestartSec=300
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
