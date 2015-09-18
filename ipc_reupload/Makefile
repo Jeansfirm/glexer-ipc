@@ -3,7 +3,7 @@ CROSS_COMPILE = arm-arago-linux-gnueabi-gcc
 target = ipc_reupload
 all:target
 target:
-	$(CROSS_COMPILE) -o $(target) detect_server.c ipc_reupload.c
+	$(CROSS_COMPILE) -o $(target) detect_server.c ipc_reupload.c cJSON.c -lm
 
 clean: 
 	-rm -rf *.o ipc_reupload

@@ -43,6 +43,43 @@ char file_num = 0;  //IPC ID
 
 
 /***************************************************************************
+
+  Function:       void get_servaddr(char *servaddr)
+  Description:    从/gl/etc/gatewaysetting.json中读取服务器ip地址
+
+  Input:          char* servaddr
+                  
+  Output:         
+
+  Return:          
+
+  Others:         
+***************************************************************************/
+
+void get_servaddr(char *servaddr)
+{
+	cJSON *root,*json_temp;
+	FILE *fd;
+	int len;
+	char *file_str;
+
+	fd=fopen("/gl/etc/gateway_setting.json","r");
+	fseek(fd,0,SEEK_END);
+	len=ftell(fd);
+	fseek(fd,0,SEEK_SET);
+	file_str=(char *)malloc(sizeof(char)*len);
+	fread(file_str,sizeof(char),len,fd);
+	root=cJSON_Parse(file_str);
+	json_temp=cJSON_GetObjectItem(root,"xmpphost");
+	strcpy(servaddr,json_temp->valuestring);
+
+	cJSON_Delete(json_temp);
+	free(file_str);
+	
+}
+
+
+/***************************************************************************
   Function:       parse_data(char* inputstr,char *outputstr,char* value)
   Description:    在字符串inputstr中查找value，输出查找到的字符串outputstr
   Input:          char* inputstr,char *outputstr,char* value
@@ -408,6 +445,8 @@ int main()
 	char name[100];
 	char password[100];
 	char cap_num[10];
+	char serv_ip[50];
+	
 
 
 	//time_t timep; 
@@ -437,7 +476,7 @@ int main()
 	uploadfailure_fd=fopen("/var/www/uploadfailure_log","a+");
 
 
-
+	get_servaddr(serv_ip);
 	
 
 	/*socket initialization and connection build*/
@@ -645,7 +684,7 @@ int main()
 		
 		/*start uploading picture to server*/
 
-		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:8888/SmartHome/uploadfile",pic_name,file_path,buffer_mac);
+		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://%s:8888/SmartHome/uploadfile",pic_name,file_path,buffer_mac,serv_ip);
 		//sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:89998/SmartHome/uploadfile",pic_name,file_path,buffer_mac);      // a wrong url, just for test
 		//printf("<p>upload_cmd:%s\n</p>",upload_cmd);
 

@@ -41,6 +41,38 @@
 
 
 /***************************************************************************
+  Function:       void get_servaddr(char *servaddr)
+  Description:    从/gl/etc/gatewaysetting.json中读取服务器ip地址
+  Input:          char* servaddr
+                  
+  Output:         
+  Return:          
+  Others:         
+***************************************************************************/
+
+void get_servaddr(char *servaddr)
+{
+	cJSON *root,*json_temp;
+	FILE *fd;
+	int len;
+	char *file_str;
+
+	fd=fopen("/gl/etc/gateway_setting.json","r");
+	fseek(fd,0,SEEK_END);
+	len=ftell(fd);
+	fseek(fd,0,SEEK_SET);
+	file_str=(char *)malloc(sizeof(char)*len);
+	fread(file_str,sizeof(char),len,fd);
+	root=cJSON_Parse(file_str);
+	json_temp=cJSON_GetObjectItem(root,"xmpphost");
+	strcpy(servaddr,json_temp->valuestring);
+
+	cJSON_Delete(json_temp);
+	free(file_str);
+	
+}
+
+/***************************************************************************
   Function:       parse_data(char* inputstr,char *outputstr,char* value)
   Description:    在字符串inputstr中查找value，输出查找到的字符串outputstr
   Input:          char* inputstr,char *outputstr,char* value
@@ -250,6 +282,7 @@ int main()
 	char buffer_mac[1024];
 	char buffer_count[1024],buffer_old[2014];
 	char *send_buf;
+	char serv_ip[50];
 
 	int findip_ret;
 	//int findname_ret;
@@ -284,6 +317,8 @@ int main()
 	char str_upload[150];
 
 	uploadfailure_fd=fopen("/var/www/uploadfailure_log","a+");
+
+	get_servaddr(serv_ip);
 	
 
 	/*initialize the socket and build the connection*/
@@ -463,7 +498,7 @@ int main()
 		}
 		pclose(fp_mac);
 
-		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:8888/SmartHome/uploadfile",video_name,file_path,buffer_mac);
+		sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://%s:8888/SmartHome/uploadfile",video_name,file_path,buffer_mac,serv_ip);
 		//sprintf(upload_cmd,"/usr/bin/curl -F filename=%s -F capture=@%s -F gateway=%s -F OK=ok http://121.199.21.14:88818/SmartHome/uploadfile",video_name,file_path,buffer_mac);  //a wrong url, just for uploadfailure test
 
 

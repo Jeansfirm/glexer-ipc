@@ -2,6 +2,10 @@
 #include<string.h>
 #include<unistd.h>
 #include<sys/wait.h>
+#include<stdlib.h>
+#include<math.h>
+
+#include"cJSON.h"
 
 FILE *log_fd_in,*log_fd_out,*fd_mac;
 char file_name[150];
@@ -13,7 +17,41 @@ int status_upload;
 char a;
 
 
-char *ser_ip="121.199.21.14";
+char ser_ip[50];
+
+
+/***************************************************************************
+  Function:       void get_servaddr(char *servaddr)
+  Description:    从/gl/etc/gatewaysetting.json中读取服务器ip地址
+  Input:          char* servaddr
+                  
+  Output:         
+  Return:          
+  Others:         
+***************************************************************************/
+
+void get_servaddr(char *servaddr)
+{
+	cJSON *root,*json_temp;
+	FILE *fd;
+	int len;
+	char *file_str;
+
+	fd=fopen("/gl/etc/gateway_setting.json","r");
+	fseek(fd,0,SEEK_END);
+	len=ftell(fd);
+	fseek(fd,0,SEEK_SET);
+	file_str=(char *)malloc(sizeof(char)*len);
+	fread(file_str,sizeof(char),len,fd);
+	root=cJSON_Parse(file_str);
+	json_temp=cJSON_GetObjectItem(root,"xmpphost");
+	strcpy(servaddr,json_temp->valuestring);
+
+	cJSON_Delete(json_temp);
+	free(file_str);
+	
+}
+
 
 /**
  * @description:
@@ -165,6 +203,7 @@ int file_exist(char *file_path)
 int main()
 {
 	
+	get_servaddr(ser_ip);
 	fd_mac=popen("cat /gl/etc/mac.conf","r");
 	while(!feof(fd_mac))
 	{
