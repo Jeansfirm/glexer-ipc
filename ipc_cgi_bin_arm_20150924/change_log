@@ -1,0 +1,4 @@
+change_log
++ 增加网关ipc文件重传程序ipc_reupload，并添加相应callback；增加重传程序自启动服务gl-ipc_reupload.service;
+* 修改服务器地址为从gatewaysetting.json中动态读取;
+* 修改ipc在线检测超时时间，避免特殊ip引起的addIPC程序堵塞现象;

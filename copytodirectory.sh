@@ -8,5 +8,6 @@ cp IPCCapture_pjf_arm_latest/IPCCapture.cgi  ipc_cgi_bin_arm/cgi
 cp modifyIPCindex_znd_arm_lastest/modifyIPCindex.cgi  ipc_cgi_bin_arm/cgi
 cp online_detect_newfun_znd_arm_lastest/ipc_online  ipc_cgi_bin_arm/bin
 cp IPCRecord_pjf_20150814/IPCRecord.cgi  ipc_cgi_bin_arm/cgi
+cp ipc_reupload/ipc_reupload ipc_cgi_bin_arm/bin
 
 echo "script executed successfully!"

@@ -4,8 +4,14 @@
 #include<sys/wait.h>
 #include<stdlib.h>
 #include<math.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
 
 #include"cJSON.h"
+
+#define SERV_PORT 5017
 
 FILE *log_fd_in,*log_fd_out,*fd_mac;
 char file_name[150];
@@ -15,9 +21,41 @@ char buff_mac[50];
 int status_upload;
 
 char a;
-
-
 char ser_ip[50];
+	
+int sockfd_send;
+char *send_buf;
+int res_connect;
+int send_ret;
+
+
+
+/***************************************************************************
+  Function:       package_json_callback 
+  Description:    发到5017端口的callback数据格式
+  Input:          
+                  
+  Output:      输出封装好的callback数据的地址   
+  Return:       
+  Others:         
+****************************************************************************/
+char *package_json_callback(int type,char *file_name)
+{
+	cJSON *root,*fmt;
+	char *out;
+	root=cJSON_CreateObject();
+	cJSON_AddNumberToObject(root,"msgtype",0);
+	cJSON_AddNumberToObject(root,"mainid",2);
+	cJSON_AddNumberToObject(root,"subid",8);
+	cJSON_AddNumberToObject(root,"status",0);
+	if(type==0)
+	{
+		cJSON_AddStringToObject(root,"file_name",file_name);
+	}
+	out=cJSON_PrintUnformatted(root);
+	cJSON_Delete(root);
+	return out;
+}
 
 
 /***************************************************************************
@@ -202,7 +240,7 @@ int file_exist(char *file_path)
 
 int main()
 {
-	
+
 	get_servaddr(ser_ip);
 	fd_mac=popen("cat /gl/etc/mac.conf","r");
 	while(!feof(fd_mac))
@@ -213,6 +251,18 @@ int main()
 	//printf("mac address:%s\n",buff_mac);
 	
 	//setuid(getuid());
+
+
+	
+	struct sockaddr_in servaddr;
+	bzero(&servaddr,sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(SERV_PORT);
+	servaddr.sin_addr.s_addr = htons(INADDR_ANY);
+	sockfd_send = socket(AF_INET,SOCK_STREAM,0);
+	res_connect=connect(sockfd_send,(struct sockaddr*)&servaddr,sizeof(struct sockaddr_in));
+	
+
 
 	while(1)
 	{
@@ -305,6 +355,10 @@ int main()
 						remove("/var/www/uploadfailure_log");
 						rename("/var/www/uploadfailure_log_temp","/var/www/uploadfailure_log");
 						
+						
+						send_buf=package_json_callback(0,file_name);
+						send_ret=send(sockfd_send,send_buf,strlen(send_buf),0);
+
 						continue;
 
 					}else
@@ -324,6 +378,7 @@ int main()
 				fclose(log_fd_in);
 				fclose(log_fd_out);
 				remove("/var/www/uploadfailure_log_temp");
+				close(sockfd_send);
 				break;
 
 
@@ -332,6 +387,7 @@ int main()
 			fclose(log_fd_in);
 			fclose(log_fd_out);
 			remove("/var/www/uploadfailure_log_temp");
+			close(sockfd_send);
 			break;
 		}
 
