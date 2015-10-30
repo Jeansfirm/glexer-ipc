@@ -117,11 +117,13 @@ void send_packet()
 void recv_packet()
 {    
 	int n,fromlen;
+	//int recv_ret;
         extern int errno;
         signal(SIGALRM,statistics);
         fromlen=sizeof(from);
-	alarm(MAX_WAIT_TIME);
 
+		#if 1
+		alarm(MAX_WAIT_TIME);
         while( nreceived<nsend)
         {       
                 if( (n=recvfrom(sockfd,recvpacket,sizeof(recvpacket),0,
@@ -136,7 +138,32 @@ void recv_packet()
                 nreceived++;
 
         }
-		
+		#endif
+
+#if 0
+
+		for(recv_ret=0;recv_ret<nsend;recv_ret++)
+		{                  
+			if((n=recvfrom(sockfd,recvpacket,sizeof(recvpacket),0,(struct sockaddr *)&from,&fromlen)) <0) 
+       		 //if(n = recv(sockfd,recvpacket,sizeof(recvpacket), 0)<=0)//阻塞读     
+			{   
+				if((errno==EINTR)||(errno == EAGAIN))
+				continue;       
+				perror("recvfrom error");  
+				continue;          
+			 }              
+			gettimeofday(&tvrecv,NULL); 
+			/*记录接收时间*/           
+			if(unpack(recvpacket,n)==-1)
+			{
+				unreceived++;
+				continue; 
+			 }          
+		     nreceived++;    
+		     usleep(100);
+		}
+
+#endif
 }
 
 
@@ -293,10 +320,10 @@ int init_online_detect()
 #if 0
     //设置阻塞接收超时
     struct timeval tv_out;
-    tv_out.tv_sec = 2; //超时2秒没有收到ICMP报文就返回
+    tv_out.tv_sec = 1; //超时2秒没有收到ICMP报文就返回
     tv_out.tv_usec = 0;
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
-	setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv_out, sizeof(tv_out));
+	//setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv_out, sizeof(tv_out));
 #endif
   
 	/* 回收root权限,设置当前用户权限*/     

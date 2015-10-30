@@ -136,9 +136,10 @@ void recv_packet()
         extern int errno;
         signal(SIGALRM,statistics);
         fromlen=sizeof(from);
-	alarm(MAX_WAIT_TIME);
+
+		alarm(MAX_WAIT_TIME);
         while( nreceived<nsend)
-        {       
+        {      // alarm(MAX_WAIT_TIME);
                 if( (n=recvfrom(sockfd,recvpacket,sizeof(recvpacket),0,
                                 (struct sockaddr *)&from,&fromlen)) <0)
                 {       
@@ -255,6 +256,7 @@ int detect_ipc_online(char *ipaddr)
     nsend=0;
     nreceived=0; 
     unreceived=0;
+	bzero(&dest_addr, sizeof(dest_addr));
     dest_addr.sin_addr.s_addr = inet_addr(ipaddr);
 	//printf("dest addr:%s\n", inet_ntoa(dest_addr.sin_addr));
     
@@ -359,7 +361,8 @@ int get_ipc_status(char *ipc_status)
         	if(strlen(ipc_etc_msg.ipc_list[ipc_num].ip_addr)>0)//IPC存在
         	{
            		//printf("ipc_etc_msg.ipc_list[%d].ip_addr =%s\r\n",ipc_num,ipc_etc_msg.ipc_list[ipc_num].ip_addr);
-            		if(detect_ipc_online(ipc_etc_msg.ipc_list[ipc_num].ip_addr)>=3)
+          init_online_detect();
+            		if(detect_ipc_online(ipc_etc_msg.ipc_list[ipc_num].ip_addr)>=2)
             		{
                  		ipc_status[ipc_num] = 'a';//在线
                      
@@ -367,9 +370,10 @@ int get_ipc_status(char *ipc_status)
             		else
             		{
                  		ipc_status[ipc_num] = 'b';//不在线
-				init_online_detect(); //after overtime blocked, the sockfd has been ruined, it must be reinitialized 
+						//init_online_detect(); //after overtime blocked, the sockfd has been ruined, it must be reinitialized 
                         
             		}
+					close(sockfd);
         	}
         	else//对应IPC不存在
         	{
